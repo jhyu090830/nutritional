@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영양 상태 자가진단 대시보드</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Chosen Palette: Warm Neutrals & Calming Earth Tones -->
+    <!-- Background: #FDFBF7 (Cream) -->
+    <!-- Primary Text: #2D3748 (Dark Slate) -->
+    <!-- Accents: #48BB78 (Soft Green), #ED8936 (Muted Orange), #E53E3E (Soft Red) -->
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans KR"', 'sans-serif'],
+                    },
+                    colors: {
+                        neutral: {
+                            50: '#FDFBF7',
+                            100: '#F7F5F0',
+                            200: '#E2E8F0',
+                            800: '#2D3748',
+                            900: '#1A202C',
+                        },
+                        brand: {
+                            green: '#48BB78',
+                            yellow: '#ECC94B',
+                            orange: '#ED8936',
+                            red: '#E53E3E',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #FDFBF7;
+            color: #2D3748;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px; 
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .option-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .option-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .selected-option {
+            background-color: #2D3748;
+            color: white;
+            border-color: #2D3748;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight text-neutral-800 flex items-center gap-2">
+                <span>🥗</span> 영양 밸런스 체크
+            </h1>
+            <div class="text-sm text-neutral-500 hidden sm:block">
+                당신의 식습관을 점검해보세요
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Application Structure Plan: 
+             1. Intro Section: Sets context and invites user to start.
+             2. Assessment Section: A clean, list-based form for the 20 questions. Grouped visually for readability but presented linearly for flow.
+             3. Dashboard Section (Hidden initially): Reveals upon submission. Contains:
+                - Overall Score Gauge (Immediate feedback).
+                - Risk Radar Chart (Detailed nutrient breakdown).
+                - Actionable Advice Cards (Textual guidance).
+             Rationale: A linear flow prevents overwhelming the user with data before input. The dashboard synthesizes the 20 points into actionable visual insights.
+        -->
+
+        <!-- Intro View -->
+        <div id="intro-view" class="max-w-3xl mx-auto text-center space-y-8 py-12 animate-fade-in">
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-neutral-100">
+                <h2 class="text-3xl font-bold mb-4 text-neutral-900">당신의 영양 상태, 안녕하십니까?</h2>
+                <p class="text-lg text-neutral-600 mb-8 leading-relaxed">
+                    본 설문은 총 20문항으로 구성된 간단한 자가진단 도구입니다.<br>
+                    평소 식습관을 통해 영양 불균형 가능성과 부족한 영양소를 확인해보세요.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-left">
+                    <div class="p-4 bg-green-50 rounded-lg border border-green-100">
+                        <div class="font-bold text-brand-green mb-1">01. 자가진단</div>
+                        <div class="text-sm text-neutral-600">식습관과 생활 패턴에 관한 20가지 질문에 답합니다.</div>
+                    </div>
+                    <div class="p-4 bg-orange-50 rounded-lg border border-orange-100">
+                        <div class="font-bold text-brand-orange mb-1">02. 위험도 분석</div>
+                        <div class="text-sm text-neutral-600">전체 건강 점수와 주요 영양소 결핍 위험을 분석합니다.</div>
+                    </div>
+                    <div class="p-4 bg-red-50 rounded-lg border border-red-100">
+                        <div class="font-bold text-brand-red mb-1">03. 행동 가이드</div>
+                        <div class="text-sm text-neutral-600">점수대에 맞는 구체적인 개선 방안을 제안합니다.</div>
+                    </div>
+                </div>
+
+                <button onclick="startSurvey()" class="bg-neutral-800 hover:bg-neutral-900 text-white font-bold py-4 px-10 rounded-full shadow-lg transition transform hover:scale-105 text-lg">
+                    진단 시작하기
+                </button>
+                <p class="mt-4 text-xs text-neutral-400">* 이 결과는 의학적 진단이 아니며 참고용입니다.</p>
+            </div>
+        </div>
+
+        <!-- Survey View -->
+        <div id="survey-view" class="hidden max-w-4xl mx-auto">
+            <div class="mb-6">
+                <div class="w-full bg-neutral-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-brand-green h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-right text-sm text-neutral-500 mt-2">
+                    진행률: <span id="progress-text">0/20</span>
+                </div>
+            </div>
+
+            <div id="questions-container" class="space-y-6">
+                <!-- Questions will be injected here by JS -->
+            </div>
+
+            <div class="mt-8 text-center">
+                <button id="submit-btn" onclick="calculateAndShowResults()" class="hidden bg-neutral-800 hover:bg-neutral-900 text-white font-bold py-4 px-12 rounded-full shadow-lg transition transform hover:scale-105 text-lg">
+                    결과 분석하기
+                </button>
+                <p id="incomplete-msg" class="text-brand-orange mt-2 hidden font-medium">모든 문항에 답변해주세요.</p>
+            </div>
+        </div>
+
+        <!-- Dashboard Result View -->
+        <div id="dashboard-view" class="hidden max-w-6xl mx-auto space-y-8">
+            
+            <!-- Result Header -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-neutral-100">
+                <h2 class="text-2xl font-bold text-neutral-800 mb-2">진단 결과 보고서</h2>
+                <p class="text-neutral-600">귀하의 답변을 바탕으로 분석된 영양 상태 개요입니다.</p>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- Visualization & Content Choices: 
+                     1. Total Score Gauge: A visual "speedometer" is intuitive for risk assessment.
+                     2. Status Card: Large text explanation of the score tier.
+                -->
+                <!-- Overall Score Section -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-neutral-100 flex flex-col">
+                    <h3 class="text-lg font-bold text-neutral-700 mb-4 border-b pb-2">종합 영양 위험도</h3>
+                    <div class="flex-grow flex flex-col items-center justify-center py-4">
+                        <div class="chart-container relative">
+                            <canvas id="scoreChart"></canvas>
+                            <!-- Score Overlay -->
+                            <div class="absolute inset-0 flex items-center justify-center flex-col pt-16 pointer-events-none">
+                                <span id="total-score-display" class="text-5xl font-extrabold text-neutral-800">0</span>
+                                <span class="text-sm text-neutral-500">/ 40점</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="score-message-container" class="mt-4 p-4 rounded-lg bg-neutral-50 text-center">
+                        <!-- Dynamic Status Message -->
+                    </div>
+                </div>
+
+                <!-- Visualization & Content Choices:
+                     3. Risk Radar Chart: Uses the "Specific Risk Groups" data logic to map vulnerabilities on a radar chart. This allows users to see shape of their diet issues (e.g., "Protein deficient" vs "Sugar heavy").
+                -->
+                <!-- Specific Risk Analysis -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-neutral-100 flex flex-col">
+                    <h3 class="text-lg font-bold text-neutral-700 mb-4 border-b pb-2">취약 영양소 상세 분석</h3>
+                    <p class="text-sm text-neutral-500 mb-4">
+                        특정 문항 패턴을 분석하여 결핍이 의심되는 영양소 및 습관을 추정합니다.
+                        <br><span class="text-xs text-neutral-400">(그래프가 바깥쪽으로 넓을수록 해당 위험도가 높습니다)</span>
+                    </p>
+                    <div class="flex-grow flex items-center justify-center">
+                        <div class="chart-container">
+                            <canvas id="riskRadarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Action Guide Section -->
+            <div class="bg-white p-8 rounded-xl shadow-lg border-l-4 border-neutral-800">
+                <h3 class="text-xl font-bold text-neutral-800 mb-6">🩺 맞춤형 행동 가이드</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="font-bold text-neutral-600 mb-3 flex items-center gap-2">
+                            <span class="bg-neutral-100 p-1 rounded">📋</span> 현재 상태 해석
+                        </h4>
+                        <div id="guide-interpretation" class="text-neutral-700 leading-relaxed bg-neutral-50 p-4 rounded-lg">
+                            <!-- JS Injected -->
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-neutral-600 mb-3 flex items-center gap-2">
+                            <span class="bg-neutral-100 p-1 rounded">🚀</span> 실천 목표
+                        </h4>
+                        <div id="guide-action" class="text-neutral-700 leading-relaxed bg-neutral-50 p-4 rounded-lg">
+                            <!-- JS Injected -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Risk List -->
+            <div id="risk-details-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- JS injected warning cards for specific risks -->
+            </div>
+
+            <div class="text-center py-8">
+                <button onclick="location.reload()" class="text-neutral-500 hover:text-neutral-800 underline">
+                    검사 다시하기
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // --- Data Structure ---
+        // Questions array based on the source text. 
+        // Scores generally: High frequency of bad habit = 2, Medium = 1, Good habit = 0.
+        // Or: Low frequency of good habit = 2.
+        
+        const questions = [
+            { id: 1, text: "아침을 거의 매일 먹지 않는다.", options: [ {label: "항상", score: 2}, {label: "가끔", score: 1}, {label: "거의 안 함 (매일 먹음)", score: 0} ] },
+            { id: 2, text: "하루에 과일을 한 개(또는 1인분)도 먹지 않는다.", options: [ {label: "예 (안 먹음)", score: 2}, {label: "가끔", score: 1}, {label: "아니오 (매일 먹음)", score: 0} ] },
+            { id: 3, text: "채소(생, 조리 포함)를 하루에 한 끼도 먹지 않는다.", options: [ {label: "예 (안 먹음)", score: 2}, {label: "가끔", score: 1}, {label: "아니오 (매일 먹음)", score: 0} ] },
+            { id: 4, text: "가공식품(라면, 인스턴트, 편의점식 등)을 거의 매일 섭취한다.", options: [ {label: "항상", score: 2}, {label: "주 2~4회", score: 1}, {label: "주 1회 이하", score: 0} ] },
+            { id: 5, text: "물(물, 무가당 차 등) 섭취량이 하루 1리터 미만이다.", options: [ {label: "예 (<1L)", score: 2}, {label: "1~1.5L", score: 1}, {label: "1.5L 이상", score: 0} ] },
+            { id: 6, text: "단 음료(탄산/과일주스/에너지 드링크)를 거의 매일 마신다.", options: [ {label: "예", score: 2}, {label: "주 2~4회", score: 1}, {label: "거의 안 마심", score: 0} ] },
+            { id: 7, text: "육류, 생선, 달걀, 콩류 등 단백질 식품을 하루 1회도 못 먹는다.", options: [ {label: "예 (못 먹음)", score: 2}, {label: "가끔", score: 1}, {label: "아니요 (1회 이상 섭취)", score: 0} ] },
+            { id: 8, text: "유제품(우유/요거트/치즈)을 거의 전혀 섭취하지 않는다.", options: [ {label: "예 (안 먹음)", score: 2}, {label: "가끔", score: 1}, {label: "아니요 (규칙적 섭취)", score: 0} ] },
+            { id: 9, text: "간식(과자, 군것질)을 하루 2번 이상 먹는다.", options: [ {label: "예 (2회 이상)", score: 2}, {label: "1번", score: 1}, {label: "거의 안 먹음", score: 0} ] },
+            { id: 10, text: "하루에 채소, 과일을 합쳐 총 3인분 미만 섭취한다.", options: [ {label: "예 (<3인분)", score: 2}, {label: "3~4인분", score: 1}, {label: "5인분 이상", score: 0} ] },
+            { id: 11, text: "저녁을 많이(과식) 먹거나 야식으로 인스턴트를 자주 먹는다.", options: [ {label: "예", score: 2}, {label: "가끔", score: 1}, {label: "거의 안 함", score: 0} ] },
+            { id: 12, text: "체중이 최근(3개월 내) 급격히 감소 또는 증가했다(5% 이상).", options: [ {label: "예", score: 2}, {label: "약간 (3~5%)", score: 1}, {label: "아니요", score: 0} ] },
+            { id: 13, text: "손/발톱의 약화, 쉽게 멍듦, 잇몸 출혈 같은 영양결핍 의심 증상이 있다.", options: [ {label: "여러 증상", score: 2}, {label: "한두 가지", score: 1}, {label: "증상 없음", score: 0} ] },
+            { id: 14, text: "하루 중 식사 시간 불규칙(끼니 거르기, 시간 들쑥)이 심하다.", options: [ {label: "매우 불규칙", score: 2}, {label: "가끔 불규칙", score: 1}, {label: "규칙적", score: 0} ] },
+            { id: 15, text: "햇빛 노출이 거의 없어(실내 활동 위주) 주 2회 미만 햇빛을 쬔다.", options: [ {label: "예 (<2회)", score: 2}, {label: "주 2~4회", score: 1}, {label: "주 5회 이상", score: 0} ] },
+            { id: 16, text: "비타민, 무기질 보충제를 매일 복용하고 있다(의사의 지시 없이).", options: [ {label: "항상", score: 1}, {label: "가끔/안함", score: 0} ] }, // Note: Source says 1 point for Always, 0 for Sometimes. A bit counter-intuitive but following source logic strictly.
+            { id: 17, text: "소화불량, 복통, 변비, 설사 같은 만성 소화 문제가 있다(주 1회 이상).", options: [ {label: "자주", score: 2}, {label: "가끔", score: 1}, {label: "없음", score: 0} ] },
+            { id: 18, text: "수면이 매우 불규칙하고 야간 각성, 수면부족이 잦다.", options: [ {label: "매우 불규칙", score: 2}, {label: "가끔 불규칙", score: 1}, {label: "규칙적 수면", score: 0} ] },
+            { id: 19, text: "채식 위주(육류, 유제품 거의 섭취X)인데 영양보충, 대체식 계획이 없다.", options: [ {label: "예 (계획 없음)", score: 2}, {label: "일부 있음", score: 1}, {label: "아니요 (충분한 계획)", score: 0} ] },
+            { id: 20, text: "최근 6개월 이내 장기적 약물(항생제 등) 또는 다이어트 약을 복용 중이다.", options: [ {label: "예", score: 2}, {label: "가끔", score: 1}, {label: "아니요", score: 0} ] }
+        ];
+
+        // Specific Risk Group Mappings (Question IDs)
+        // Note: Q16 and Q20 don't fit perfectly into the named groups in source, but influence total score.
+        const riskGroups = {
+            iron: { title: "철분 결핍 위험", ids: [2, 8, 12, 13], color: "rgba(239, 68, 68, 0.7)" }, // Red-ish
+            vitD: { title: "비타민D 부족", ids: [15, 8], color: "rgba(245, 158, 11, 0.7)" }, // Orange-ish
+            protein: { title: "단백질 부족", ids: [7, 19], color: "rgba(59, 130, 246, 0.7)" }, // Blue-ish
+            sugar: { title: "당류/에너지 과다", ids: [4, 6, 9, 11], color: "rgba(16, 185, 129, 0.7)" }, // Green-ish
+            digestion: { title: "소화/흡수 문제", ids: [17, 12], color: "rgba(139, 92, 246, 0.7)" } // Purple-ish
+        };
+
+        let userAnswers = {};
+
+        // --- Core Logic ---
+
+        function startSurvey() {
+            document.getElementById('intro-view').classList.add('hidden');
+            document.getElementById('survey-view').classList.remove('hidden');
+            renderQuestions();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            questions.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-xl shadow border border-neutral-100 transition-all";
+                card.id = `q-card-${q.id}`;
+                
+                let optionsHtml = '';
+                q.options.forEach((opt, optIndex) => {
+                    optionsHtml += `
+                        <button 
+                            onclick="selectOption(${q.id}, ${opt.score}, this)" 
+                            class="option-btn w-full text-left px-4 py-3 rounded-lg border border-neutral-200 text-neutral-600 mb-2 hover:bg-neutral-50 focus:outline-none"
+                        >
+                            <div class="flex justify-between items-center">
+                                <span>${opt.label}</span>
+                                <span class="text-xs font-bold text-neutral-300 bg-neutral-100 px-2 py-1 rounded hidden debug-score">${opt.score}점</span>
+                            </div>
+                        </button>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <span class="bg-neutral-800 text-white text-xs font-bold px-2 py-1 rounded-md mt-1">Q${index + 1}</span>
+                        <h3 class="text-lg font-medium text-neutral-800 leading-snug">${q.text}</h3>
+                    </div>
+                    <div class="mt-4 grid grid-cols-1 gap-2">
+                        ${optionsHtml}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectOption(qId, score, btnElement) {
+            userAnswers[qId] = score;
+
+            // Visual update
+            const parent = document.getElementById(`q-card-${qId}`);
+            const buttons = parent.querySelectorAll('.option-btn');
+            buttons.forEach(b => {
+                b.classList.remove('selected-option', 'ring-2', 'ring-neutral-800');
+                b.classList.add('border-neutral-200', 'text-neutral-600');
+            });
+
+            btnElement.classList.remove('border-neutral-200', 'text-neutral-600');
+            btnElement.classList.add('selected-option', 'ring-2', 'ring-neutral-800');
+
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.keys(userAnswers).length;
+            const total = questions.length;
+            const percentage = (answeredCount / total) * 100;
+            
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            document.getElementById('progress-text').innerText = `${answeredCount}/${total}`;
+
+            if (answeredCount === total) {
+                document.getElementById('submit-btn').classList.remove('hidden');
+                document.getElementById('incomplete-msg').classList.add('hidden');
+            }
+        }
+
+        function calculateAndShowResults() {
+            const totalQuestions = questions.length;
+            if (Object.keys(userAnswers).length < totalQuestions) {
+                document.getElementById('incomplete-msg').classList.remove('hidden');
+                // Optional: Scroll to first unanswered question logic could go here
+                return;
+            }
+
+            // Calculate Total Score
+            let totalScore = 0;
+            Object.values(userAnswers).forEach(s => totalScore += s);
+
+            // Calculate Risk Groups
+            let riskAnalysis = {};
+            for (const [key, group] of Object.entries(riskGroups)) {
+                let groupScore = 0;
+                let maxGroupScore = 0;
+                group.ids.forEach(qid => {
+                    groupScore += userAnswers[qid] || 0;
+                    // Find max score for this question (usually 2, sometimes 1 for Q16)
+                    const qData = questions.find(q => q.id === qid);
+                    const maxQScore = Math.max(...qData.options.map(o => o.score));
+                    maxGroupScore += maxQScore;
+                });
+                // Normalize to 0-100 for Radar Chart
+                riskAnalysis[key] = {
+                    score: groupScore,
+                    percentage: (groupScore / maxGroupScore) * 100,
+                    title: group.title
+                };
+            }
+
+            // Render Dashboard
+            document.getElementById('survey-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.remove('hidden');
+            window.scrollTo(0, 0);
+
+            renderTotalScoreChart(totalScore);
+            renderRiskRadarChart(riskAnalysis);
+            updateTextContent(totalScore, riskAnalysis);
+        }
+
+        // --- Visualization Logic ---
+
+        function renderTotalScoreChart(score) {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            document.getElementById('total-score-display').innerText = score;
+            
+            // Determine Color
+            let color = '#48BB78'; // Green
+            if (score >= 14) color = '#ED8936'; // Orange
+            if (score >= 27) color = '#E53E3E'; // Red
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['내 점수', '남은 점수'],
+                    datasets: [{
+                        data: [score, 40 - score],
+                        backgroundColor: [color, '#E2E8F0'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    circumference: 180,
+                    rotation: -90,
+                    cutout: '80%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        function renderRiskRadarChart(riskData) {
+            const ctx = document.getElementById('riskRadarChart').getContext('2d');
+            
+            const labels = Object.values(riskData).map(d => d.title);
+            const data = Object.values(riskData).map(d => d.percentage);
+
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '위험도 (%)',
+                        data: data,
+                        fill: true,
+                        backgroundColor: 'rgba(237, 137, 54, 0.2)', // Orange tint
+                        borderColor: 'rgba(237, 137, 54, 1)',
+                        pointBackgroundColor: 'rgb(237, 137, 54)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(237, 137, 54)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    elements: {
+                        line: { borderWidth: 2 }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { display: true },
+                            suggestedMin: 0,
+                            suggestedMax: 100,
+                            ticks: { display: false } // Hide numbers on axis for cleaner look
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateTextContent(score, riskAnalysis) {
+            const msgContainer = document.getElementById('score-message-container');
+            const guideInterp = document.getElementById('guide-interpretation');
+            const guideAction = document.getElementById('guide-action');
+            const riskDetails = document.getElementById('risk-details-container');
+
+            let statusTitle, statusColor, interpText, actionText;
+
+            // Logic based on Source Report
+            if (score <= 13) {
+                statusTitle = "영양 위험 낮음 (양호)";
+                statusColor = "text-brand-green";
+                msgContainer.innerHTML = `<h4 class="text-xl font-bold ${statusColor}">${statusTitle}</h4><p class="text-sm text-neutral-600">대체로 식생활 균형이 잘 잡혀있습니다!</p>`;
+                interpText = "현재 큰 문제는 없으나, 일부 소홀할 수 있는 항목들(수면, 수분 등)을 조금만 더 신경 쓴다면 최상의 컨디션을 유지할 수 있습니다.";
+                actionText = `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><b>유지하기:</b> 현재의 좋은 식습관 목록을 만들어보세요.</li>
+                        <li><b>미세 조정:</b> 아침 챙기기나 채소 한 접시 더 먹기 같은 소소한 목표를 추가해보세요.</li>
+                        <li><b>지속성:</b> 방심하지 말고 현재 패턴을 루틴화하세요.</li>
+                    </ul>
+                `;
+            } else if (score <= 26) {
+                statusTitle = "건강 옐로카드 (주의 필요)";
+                statusColor = "text-brand-orange";
+                msgContainer.innerHTML = `<h4 class="text-xl font-bold ${statusColor}">${statusTitle}</h4><p class="text-sm text-neutral-600">영양 불균형 가능성이 있습니다.</p>`;
+                interpText = "특정 영양소의 부족이 우려됩니다. 방치할 경우 만성적인 피로감이나 컨디션 저하로 이어질 수 있습니다. 생활습관 전반의 점검이 필요한 시점입니다.";
+                actionText = `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><b>식단 일지:</b> 주 1회, 무엇을 언제 먹었는지 기록해보세요.</li>
+                        <li><b>목표 설정:</b> 부족하기 쉬운 영양소(단백질, 칼슘, 비타민D) 보충 계획을 세우세요.</li>
+                        <li><b>보조제 고려:</b> 필요하다면 전문가와 상담 후 영양제 섭취를 고려하세요.</li>
+                    </ul>
+                `;
+            } else {
+                statusTitle = "영양 불균형 위험 (비상)";
+                statusColor = "text-brand-red";
+                msgContainer.innerHTML = `<h4 class="text-xl font-bold ${statusColor}">${statusTitle}</h4><p class="text-sm text-neutral-600">즉각적인 조치가 필요합니다.</p>`;
+                interpText = "영양 불균형 정도가 높습니다. 신체적 증상(만성 피로, 소화 문제 등)이 이미 나타나고 있을 가능성이 큽니다. 자가 노력만으로는 부족할 수 있습니다.";
+                actionText = `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><b>전문가 상담:</b> 의사, 영양사 등 전문가와의 상담을 강력히 권장합니다.</li>
+                        <li><b>혈액 검사:</b> 빈혈, 혈당, 비타민D 수치 등을 확인해보세요.</li>
+                        <li><b>패턴 리셋:</b> 가공식품을 끊고 끼니 시간을 규칙적으로 맞추는 것부터 시작하세요.</li>
+                    </ul>
+                `;
+            }
+
+            guideInterp.innerHTML = interpText;
+            guideAction.innerHTML = actionText;
+
+            // Generate Risk Detail Cards
+            riskDetails.innerHTML = '';
+            for (const [key, data] of Object.entries(riskAnalysis)) {
+                if (data.percentage >= 50) { // If risk score is high (>50%)
+                    const div = document.createElement('div');
+                    div.className = "bg-red-50 p-4 rounded-lg border border-red-100 flex items-start gap-3";
+                    div.innerHTML = `
+                        <div class="text-2xl">⚠️</div>
+                        <div>
+                            <h5 class="font-bold text-red-800">${data.title} 주의</h5>
+                            <p class="text-xs text-red-600 mt-1">해당 항목 관련 문항 점수가 높습니다. 관련 식품 섭취를 점검하세요.</p>
+                        </div>
+                    `;
+                    riskDetails.appendChild(div);
+                }
+            }
+            if (riskDetails.innerHTML === '') {
+                 const div = document.createElement('div');
+                    div.className = "bg-green-50 p-4 rounded-lg border border-green-100 col-span-full text-center";
+                    div.innerHTML = `
+                        <h5 class="font-bold text-green-800">특정 위험군 발견되지 않음</h5>
+                        <p class="text-sm text-green-600 mt-1">특정 영양소에 치우친 결핍 징후는 보이지 않습니다. 훌륭합니다!</p>
+                    `;
+                    riskDetails.appendChild(div);
+            }
+        }
+
+    </script>
+</body>
+</html>
